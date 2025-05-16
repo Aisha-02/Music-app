@@ -5,7 +5,7 @@ import {
   getRecommendations,
   getArtistsByPreference,
   getTracksByArtist,
-} from "../controllers/searchController.js";
+} from "../Controllers/searchController.js";
 
 const router = express.Router();
 

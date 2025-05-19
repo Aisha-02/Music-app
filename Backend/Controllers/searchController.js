@@ -11,7 +11,7 @@ export const searchTracks = async (req, res) => {
     const token = await getAccessToken();
     const response = await axios.get("https://api.spotify.com/v1/search", {
       headers: { Authorization: `Bearer ${token}` },
-      params: { q, type: "track", limit: 10 },
+      params: { q, type:"track", limit:10 },
     });
     res.json(response.data.tracks.items);
   } catch (err) {
@@ -20,7 +20,6 @@ export const searchTracks = async (req, res) => {
 };
 
 
-// 3. /artists?artists=Shreya Ghoshal,Arijit Singh
 export const getArtistsByPreference = async (req, res) => {
   const { artists } = req.query;
   if (!artists) return res.status(400).json({ error: "Artists required" });
@@ -34,7 +33,7 @@ export const getArtistsByPreference = async (req, res) => {
     for (const name of inputArtists) {
       const tdRes = await axios.get("https://tastedive.com/api/similar", {
         params: {
-          q: name, // remove spaces for TasteDive query
+          q: name,
           type: "music",
           info: 0,
           limit: 10,
@@ -42,10 +41,8 @@ export const getArtistsByPreference = async (req, res) => {
         },
       });
 
-      // Use lowercase keys as per API response
       const relatedArtists = tdRes.data.similar?.results || [];
 
-      // Add input artist and related artists to the set
       allArtistNames.add(name.replace(/\s/g, ""));
       relatedArtists.forEach((a) => {
         if (a?.name) {
@@ -54,9 +51,12 @@ export const getArtistsByPreference = async (req, res) => {
       });
     }
 
+    // Limit total artists to max 15
+    const limitedArtistNames = Array.from(allArtistNames).slice(0, 15);
+
     // Step 2: Search each artist on Spotify to get artist ID and details
     const artistDetails = [];
-    for (const artistName of allArtistNames) {
+    for (const artistName of limitedArtistNames) {
       const searchRes = await axios.get("https://api.spotify.com/v1/search", {
         headers: { Authorization: `Bearer ${token}` },
         params: { q: artistName, type: "artist", limit: 1 },
@@ -66,17 +66,18 @@ export const getArtistsByPreference = async (req, res) => {
     }
 
     res.json({
-      input: artistDetails.filter(a => inputArtists.some(inArtist => a.name.toLowerCase().includes(inArtist.toLowerCase()))),
-      similar: artistDetails.filter(a => !inputArtists.some(inArtist => a.name.toLowerCase().includes(inArtist.toLowerCase()))),
+      input: artistDetails.filter(a =>
+        inputArtists.some(inArtist => a.name.toLowerCase().includes(inArtist.toLowerCase()))
+      ),
+      similar: artistDetails.filter(a =>
+        !inputArtists.some(inArtist => a.name.toLowerCase().includes(inArtist.toLowerCase()))
+      ),
     });
   } catch (err) {
     console.error("Failed to fetch artists:", err.response?.data || err.message);
     res.status(500).json({ error: "Failed to fetch artists by preference" });
   }
 };
-
-
-
 
 // 2. /api/spotify/recommendations-by-artists?artists=Arijit Singh,Taylor Swift
 export const getRecommendations = async (req, res) => {
@@ -86,10 +87,8 @@ export const getRecommendations = async (req, res) => {
   try {
     const token = await getAccessToken();
 
-    // 1. Parse artist names from query and remove spaces (for TasteDive query)
     const inputArtists = artists.split(",").map((a) => a.trim().replace(/\s+/g, ""));
 
-    // 2. Fetch similar artists from TasteDive API for each input artist
     const tasteDiveKey = process.env.TASTEDIVE_API_KEY;
     const similarArtistsSet = new Set();
 
@@ -104,7 +103,6 @@ export const getRecommendations = async (req, res) => {
         },
       });
 
-      // Add original artist name and similar artists to the set
       similarArtistsSet.add(artistName);
       const similar = tdRes.data.Similar?.Results || [];
       for (const s of similar) {
@@ -112,9 +110,12 @@ export const getRecommendations = async (req, res) => {
       }
     }
 
-    // 3. Search Spotify to get IDs for all unique artist names
+    // No limit on number of artists here
+    const allArtists = Array.from(similarArtistsSet);
+
+    // Get Spotify artist IDs for all artists
     const artistIDs = [];
-    for (const name of similarArtistsSet) {
+    for (const name of allArtists) {
       const searchRes = await axios.get("https://api.spotify.com/v1/search", {
         headers: { Authorization: `Bearer ${token}` },
         params: { q: name, type: "artist", limit: 1 },
@@ -128,29 +129,29 @@ export const getRecommendations = async (req, res) => {
       return res.status(404).json({ error: "No artists found on Spotify" });
     }
 
-    // 4. Fetch top tracks for each artist ID
+    // Fetch top tracks for each artist ID and collect ALL tracks
     const allTopTracks = [];
     for (const artistId of artistIDs) {
       const topTracksRes = await axios.get(
         `https://api.spotify.com/v1/artists/${artistId}/top-tracks`,
         {
           headers: { Authorization: `Bearer ${token}` },
-          params: { market: "IN" }, // Limit to top 5 tracks
+          params: { market: "IN" },
         }
       );
 
       allTopTracks.push(...topTracksRes.data.tracks);
     }
 
-    // 5. Return all top tracks combined
-    res.json({ tracks: allTopTracks });
+    // Limit total tracks to max 20 here
+    const limitedTracks = allTopTracks.slice(0, 20);
+
+    res.json({ tracks: limitedTracks });
   } catch (err) {
     console.error("Failed to fetch recommendations:", err.response?.data || err.message);
     res.status(500).json({ error: "Failed to fetch recommendations" });
   }
 };
-
-
 
 
 // 4. /artist-tracks/:artistId
@@ -164,7 +165,7 @@ export const getTracksByArtist = async (req, res) => {
       `https://api.spotify.com/v1/artists/${artistId}/top-tracks`,
       {
         headers: { Authorization: `Bearer ${token}` },
-        params: { market: "IN"  }, // or "US", depending on your audience
+        params: { market: "IN" }, // or "US", depending on your audience
       }
     );
     res.json(response.data.tracks);

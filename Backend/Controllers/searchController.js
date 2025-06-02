@@ -173,3 +173,30 @@ export const getTracksByArtist = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch artist's tracks" });
   }
 };
+
+export const getTrackById = async (req, res) => {
+  const { ids } = req.query;
+
+  if (!ids) {
+    return res.status(400).json({ error: 'Missing track IDs in query' });
+  }
+
+  const idArray = ids.split(',');
+  if (idArray.length > 50) {
+    return res.status(400).json({ error: 'Cannot fetch more than 50 tracks at once' });
+  }
+
+  try {
+    const token = await getAccessToken();
+    const response = await axios.get(
+      `https://api.spotify.com/v1/tracks?ids=${ids}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    res.json({ tracks: response.data.tracks });
+  } catch (error) {
+    console.error('Spotify fetch error:', error.message);
+    res.status(500).json({ error: 'Failed to fetch track details' });
+  }
+}

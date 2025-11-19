@@ -203,15 +203,16 @@ export const getTrackById = async (req, res) => {
 
 export const getArtistImage = async (req, res) => {
   const { artistName } = req.query;
-  if (!artistName) return res.status(400).json({ error: "Artist name required" });
+  if (!artistName)
+    return res.status(400).json({ error: "Artist name required" });
 
-  const token = await getAccessToken(); 
+  const token = await getAccessToken();
+
   try {
     const response = await axios.get(
-      `https://api.spotify.com/v1/search`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        
+      "https://api.spotify.com/v1/search",
+      {
+        headers: { Authorization: `Bearer ${token}` },
         params: {
           q: artistName,
           type: "artist",
@@ -223,12 +224,13 @@ export const getArtistImage = async (req, res) => {
     const artist = response.data.artists.items[0];
 
     if (!artist || !artist.images.length) {
-      return null; // no image found
+      return res.json({ image: null });
     }
 
-    return artist.images[0].url; // largest image
+    return res.json({ image: artist.images[0].url });
+
   } catch (error) {
-    console.log("Error getting artist image", error);
-    return null;
+    console.error("Error fetching artist image:", error);
+    return res.status(500).json({ image: null });
   }
 };

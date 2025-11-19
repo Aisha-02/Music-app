@@ -200,3 +200,31 @@ export const getTrackById = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch track details' });
   }
 }
+
+export const getArtistImage = async (artistName) => {
+  try {
+    const response = await axios.get(
+      `https://api.spotify.com/v1/search`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        
+        params: {
+          q: artistName,
+          type: "artist",
+          limit: 1,
+        },
+      }
+    );
+
+    const artist = response.data.artists.items[0];
+
+    if (!artist || !artist.images.length) {
+      return null; // no image found
+    }
+
+    return artist.images[0].url; // largest image
+  } catch (error) {
+    console.log("Error getting artist image", error);
+    return null;
+  }
+};

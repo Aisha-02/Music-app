@@ -201,7 +201,11 @@ export const getTrackById = async (req, res) => {
   }
 }
 
-export const getArtistImage = async (artistName) => {
+export const getArtistImage = async (req, res) => {
+  const { artistName } = req.query;
+  if (!artistName) return res.status(400).json({ error: "Artist name required" });
+
+  const token = await getAccessToken(); 
   try {
     const response = await axios.get(
       `https://api.spotify.com/v1/search`,
